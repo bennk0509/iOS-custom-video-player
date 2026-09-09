@@ -34,16 +34,13 @@ class VideoRenderer {
         guard let renderer = self.renderer else {
             throw VideoRenderError.noRenderer
         }
-        if renderer.isReadyForMoreMediaData{
-            let frame = await frameBuffer.dequeue()
-            let sampleBuffer = try makeSampleBuffer(from: frame)
-            renderer.enqueue(sampleBuffer)
-            if !hasStartedPlayback {
-                self.synchronizer.setRate(1.0, time: frame.pts)
-                hasStartedPlayback = true
-            }
+        let frame = await frameBuffer.dequeue()
+        let sampleBuffer = try makeSampleBuffer(from: frame)
+        if !hasStartedPlayback {
+            self.synchronizer.setRate(1.0, time: frame.pts)
+            hasStartedPlayback = true
         }
-        
+        renderer.enqueue(sampleBuffer)
     }
     
     private func makeSampleBuffer(from decodedVideoBuffer: DecodedVideoFrame) throws -> CMSampleBuffer{

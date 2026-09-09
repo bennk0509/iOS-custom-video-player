@@ -11,6 +11,7 @@ enum AudioRenderError: Error {
     case noRenderer
 }
 
+@MainActor
 class AudioRenderer{
     private let renderer = AVSampleBufferAudioRenderer()
     private let audioBuffer: AudioSampleBuffer
@@ -30,7 +31,7 @@ class AudioRenderer{
             try audioSession.setActive(true)
             print("[AudioManager] Audio session configured")
         } catch {
-            print("[AudioManager] Failed to setup audio session: \(error)")
+            print("[AudioMvanager] Failed to setup audio session: \(error)")
         }
     }
     
@@ -38,11 +39,9 @@ class AudioRenderer{
         await audioBuffer.enqueue(sample)
     }
     
-    func renderNextSample() async throws{
-        if renderer.isReadyForMoreMediaData{
-            let audioBuffer = await audioBuffer.dequeue()
-            renderer.enqueue(audioBuffer)
-        }
+    func renderNextSample() async throws {
+        let audioBuffer = await audioBuffer.dequeue()
+        renderer.enqueue(audioBuffer)
     }
     
 }

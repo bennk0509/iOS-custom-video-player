@@ -13,7 +13,6 @@ class VideoViewModel{
 
     private let videoRenderer: VideoRenderer
     private let audioRenderer: AudioRenderer
-    
     weak var sampleBufferVideoRenderer: AVSampleBufferVideoRenderer? {
         didSet {
             guard let sampleBufferVideoRenderer else { return }
@@ -25,8 +24,11 @@ class VideoViewModel{
         self.videoDecode = VTVideoDecodeImpl()
         self.videoFrameBuffer = VideoFrameBuffer()
         self.audioSampleBuffer = AudioSampleBuffer()
+        
         self.renderSynchronizer = AVSampleBufferRenderSynchronizer()
-        self.videoRenderer = VideoRenderer(frameBuffer: videoFrameBuffer, synchronizer: renderSynchronizer)
+        
+        self.videoRenderer = VideoRenderer(frameBuffer: videoFrameBuffer, synchronizer: self.renderSynchronizer)
+        
         self.audioRenderer = AudioRenderer(audioBuffer: audioSampleBuffer)
     }
     func playBack() {
@@ -34,7 +36,7 @@ class VideoViewModel{
 
         renderSynchronizer.addRenderer(audioRenderer.underlyingRenderer)
         renderSynchronizer.addRenderer(sampleBufferVideoRenderer!)
-        
+
         Task { await decodeAudioIntoBuffer() }
         Task { await decodeVideoIntoBuffer() }
         Task { await renderVideoLoop() }
@@ -44,6 +46,7 @@ class VideoViewModel{
     private func renderVideoLoop() async {
         while true {
             do {
+                print("VIDEO RENDER")
                 try await videoRenderer.renderNextFrame()
             } catch {
                 print("[VIDEO RENDER]:", error)

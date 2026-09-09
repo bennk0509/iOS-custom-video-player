@@ -7,7 +7,7 @@
 
 actor VideoFrameBuffer{
     private let core: CustomBufferQueue<DecodedVideoFrame>
-    init(maxSize: Int = 600, yellowThreshold: Int = 400 ) {
+    init(maxSize: Int = 600, yellowThreshold: Int = 30) {
         core = CustomBufferQueue(yellowThreshold: yellowThreshold, maxSize: maxSize)
     }
     
