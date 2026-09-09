@@ -16,6 +16,19 @@ class ViewController: UIViewController {
         view.backgroundColor = .clear
         return view
     }()
+    
+    let playButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Play Video", for: .normal)
+        button.setTitle("Playing...", for: .selected)
+        button.backgroundColor = .systemBlue
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 12
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
     private let ciContext = CIContext(options: nil)
     
     init() {
@@ -34,17 +47,37 @@ class ViewController: UIViewController {
         }
         let videoView = VideoViewFactory.create(videoURL: videoURL)
         view.addSubview(videoView)
+        view.addSubview(playButton)
+        playButton.addTarget(self, action: #selector(playButtonTapped), for: .touchUpInside)
         videoView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             videoView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             videoView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             videoView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            videoView.heightAnchor.constraint(equalToConstant: 300)
+            videoView.heightAnchor.constraint(equalToConstant: 300),
+            playButton.topAnchor.constraint(equalTo: videoView.bottomAnchor, constant: 32),
+            playButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            playButton.widthAnchor.constraint(equalToConstant: 200),
+            playButton.heightAnchor.constraint(equalToConstant: 50)
         ])
         self.videoView = videoView
         
-        videoView.playBack()
+//        videoView.playBack()
 
+    }
+    
+    @objc private func playButtonTapped() {
+        guard let videoView = videoView else { return }
+        
+        playButton.isSelected = true      // Đổi text sang "Playing..."
+        playButton.isEnabled = false      // Disable để tránh spam
+        
+        videoView.playBack()
+        
+        // Re-enable sau 1 giây
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.playButton.isEnabled = true
+        }
     }
 }
 

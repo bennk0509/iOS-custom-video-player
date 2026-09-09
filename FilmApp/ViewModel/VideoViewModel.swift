@@ -7,166 +7,88 @@ class VideoViewModel{
     private let assetReader: AssetReader
     private let videoDecode: VideoDecode
     private let renderSynchronizer: AVSampleBufferRenderSynchronizer
+
     private let videoFrameBuffer: VideoFrameBuffer
     private let audioSampleBuffer: AudioSampleBuffer
-    weak var sampleBufferVideoRenderer: AVSampleBufferVideoRenderer?
-    private let sampleBufferAudioRenderer: AVSampleBufferAudioRenderer
-    private var formatDescription: CMVideoFormatDescription?
-    //reader - reuse
-    // decode - no reuse: create inside viewmodel
-    //buffer - no reuse
-    //
+
+    private let videoRenderer: VideoRenderer
+    private let audioRenderer: AudioRenderer
+    weak var sampleBufferVideoRenderer: AVSampleBufferVideoRenderer? {
+        didSet {
+            guard let sampleBufferVideoRenderer else { return }
+            videoRenderer.setRenderer(sampleBufferVideoRenderer)
+        }
+    }
     init(assetReader: AssetReader) {
         self.assetReader = assetReader
         self.videoDecode = VTVideoDecodeImpl()
-//        self.videoFrameBuffer = BufferQueueFactory.createBuffer(type: .video)
-//        self.audioSampleBuffer = BufferQueueFactory.createBuffer(type: .audio)
         self.videoFrameBuffer = VideoFrameBuffer()
         self.audioSampleBuffer = AudioSampleBuffer()
-        self.sampleBufferAudioRenderer = AVSampleBufferAudioRenderer()
+        
         self.renderSynchronizer = AVSampleBufferRenderSynchronizer()
         
-    }
-    //run 3 tasks
-    //task 1 decode (private)
-    //task 2 video enqueue (private)
-    //task 3 audio enqueue (private)
-    func playBack(){
-        guard let sampleBufferVideoRenderer = self.sampleBufferVideoRenderer else {
-            return
-        }
-        renderSynchronizer.addRenderer(self.sampleBufferAudioRenderer)
-        renderSynchronizer.addRenderer(sampleBufferVideoRendererfo)
-        Task { await enqueueAudioBuffer() }
-        Task{
-            await decodeVideoIntoBuffer()
-        }
-        Task{
-            await renderVideoFromBuffer()
-        }
+        self.videoRenderer = VideoRenderer(frameBuffer: videoFrameBuffer, synchronizer: self.renderSynchronizer)
         
-        Task{
-            await renderAudioFromBuffer()
-        }
+        self.audioRenderer = AudioRenderer(audioBuffer: audioSampleBuffer)
     }
-    
-    func renderVideoFromBuffer() async{
-        do{
-            var isPlaybackStarted = false
-            while true {
-                guard let videoRenderer = self.sampleBufferVideoRenderer else {
-                    return
-                }
-                if videoRenderer.isReadyForMoreMediaData {
-                    guard let frame = await videoFrameBuffer.dequeueCustom() else {
-                        continue
-                    }
-                    try await enqueue(from: frame)
-                    if !isPlaybackStarted{
-                        renderSynchronizer.setRate(1.0, time: frame.pts)
-                        isPlaybackStarted = true
-                    }
-                }
-            }
-        } catch {
-            print("[RENDERER]: ", error)
-        }
-    }
-    
-    func renderAudioFromBuffer() async{
-        while true {
-            if sampleBufferAudioRenderer.isReadyForMoreMediaData {
-                guard let audioBuffer = await audioSampleBuffer.dequeue() else {
-                    continue
-                }
-                self.sampleBufferAudioRenderer.enqueue(audioBuffer)
-            }
-        }
-    }
-    
+    func playBack() {
+        guard sampleBufferVideoRenderer != nil else { return }
 
-    func enqueue(from decodedVideoBuffer: DecodedVideoFrame?) async throws{
-        guard let sampleBufferVideoRender = self.sampleBufferVideoRenderer else{
-            return
-        }
-        guard let decodedVideoBuffer = decodedVideoBuffer else {
-            return
-        }
-        guard let sampleBuffer = try makeSampleBuffer(from: decodedVideoBuffer) else{
-            return
-        }
-        await MainActor.run {
-            sampleBufferVideoRender.enqueue(sampleBuffer)
+        renderSynchronizer.addRenderer(audioRenderer.underlyingRenderer)
+        renderSynchronizer.addRenderer(sampleBufferVideoRenderer!)
+
+        Task { await decodeAudioIntoBuffer() }
+        Task { await decodeVideoIntoBuffer() }
+        Task { await renderVideoLoop() }
+        Task { await renderAudioLoop() }
+    }
+
+    private func renderVideoLoop() async {
+        while true {
+            do {
+                print("VIDEO RENDER")
+                try await videoRenderer.renderNextFrame()
+            } catch {
+                print("[VIDEO RENDER]:", error)
+                break
+            }
         }
     }
-    
-    private func enqueueAudioBuffer() async{
+
+    private func renderAudioLoop() async {
+        while true {
+            do {
+                try await audioRenderer.renderNextSample()
+            } catch {
+                print("[AUDIO RENDER]:", error)
+                break
+            }
+        }
+    }
+
+    private func decodeAudioIntoBuffer() async {
         do {
             let audioBuffersStream = assetReader.audioSampleBuffers()
-            for try await audioSampleBuffer in audioBuffersStream {
-                await self.audioSampleBuffer.enqueue(audioSampleBuffer)
+            for try await sample in audioBuffersStream {
+                await audioRenderer.enqueue(sample)
             }
         } catch {
             print("[Audio] ERROR: \(error)")
         }
     }
 
-    private func decodeVideoIntoBuffer() async{
-        do{
+    private func decodeVideoIntoBuffer() async {
+        do {
             let buffersStream = assetReader.sampleBuffers()
             for try await sampleBuffer in buffersStream {
                 let decodedFrame = try await videoDecode.decode(sample: sampleBuffer)
-                guard let decodedFrame = decodedFrame else {continue}
-                await videoFrameBuffer.enqueueCustom(decodedFrame)
+                guard let decodedFrame else { continue }
+                await videoFrameBuffer.enqueue(decodedFrame)
             }
         } catch {
             print("[DECODE]:", error)
         }
     }
-    
-    private func makeSampleBuffer(from decodedVideoBuffer: DecodedVideoFrame?) throws -> CMSampleBuffer?{
-        guard let decodedVideoBuffer = decodedVideoBuffer else{
-            throw VideoManagerError.cantCreateSampleBuffer
-        }
-        let formatDescription: CMVideoFormatDescription
-
-        if let cached = self.formatDescription{
-            formatDescription = cached
-        } else{
-            var tempFormatDescription: CMVideoFormatDescription?
-            let formatStatus = CMVideoFormatDescriptionCreateForImageBuffer(
-                allocator: kCFAllocatorDefault,
-                imageBuffer: decodedVideoBuffer.pixelBuffer,
-                formatDescriptionOut: &tempFormatDescription
-            )
-            
-            guard formatStatus == noErr, let unwrappedFormat = tempFormatDescription else {
-                throw VideoManagerError.cantCreateFormatDescription
-            }
-            
-            self.formatDescription = unwrappedFormat
-            formatDescription = unwrappedFormat
-        }
-        var timing = CMSampleTimingInfo(
-            duration: decodedVideoBuffer.duration,
-            presentationTimeStamp: decodedVideoBuffer.pts,
-            decodeTimeStamp: .invalid
-        )
-        
-        var sampleBuffer: CMSampleBuffer? = nil
-        let bufferStatus = CMSampleBufferCreateReadyWithImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: decodedVideoBuffer.pixelBuffer,
-            formatDescription: formatDescription,
-            sampleTiming: &timing,
-            sampleBufferOut: &sampleBuffer
-        )
-        guard bufferStatus == noErr else {
-            throw VideoManagerError.cantCreateSampleBuffer
-        }
-        return sampleBuffer
-    }
-    
     
 }
 
