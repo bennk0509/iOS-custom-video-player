@@ -34,7 +34,9 @@ class VideoRenderer {
         guard let renderer = self.renderer else {
             throw VideoRenderError.noRenderer
         }
-        let frame = await frameBuffer.dequeue()
+        guard let frame = await frameBuffer.dequeue() else {
+            return
+        }
         let sampleBuffer = try makeSampleBuffer(from: frame)
         if !hasStartedPlayback {
             self.synchronizer.setRate(1.0, time: frame.pts)

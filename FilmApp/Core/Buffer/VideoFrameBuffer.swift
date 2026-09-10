@@ -12,6 +12,6 @@ actor VideoFrameBuffer{
     }
     
     func enqueue(_ buffer: DecodedVideoFrame) async { await core.enqueue(buffer) }
-    func dequeue() async -> DecodedVideoFrame { await core.dequeue() }
+    func dequeue() async -> DecodedVideoFrame? { await core.dequeue() }
     func clear() async {await core.clear()}
 }

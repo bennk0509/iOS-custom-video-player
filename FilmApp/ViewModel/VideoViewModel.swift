@@ -45,14 +45,11 @@ class VideoViewModel{
         if isPlaying {
             await stop()
         }
-        
         isPlaying = true
-        renderSynchronizer.setRate(0.0, time: .zero)
-
-        decodeTasks.append(Task { await decodeAudioIntoBuffer() })
         decodeTasks.append(Task { await decodeVideoIntoBuffer() })
+        decodeTasks.append(Task { await decodeAudioIntoBuffer() })
         encodeTasks.append(Task { await renderVideoLoop()})
-        encodeTasks.append(Task { await renderAudioLoop() })
+        encodeTasks.append(Task { await renderAudioLoop()})
     }
     
     func pause() {
@@ -77,9 +74,7 @@ class VideoViewModel{
         encodeTasks.removeAll()
         await videoRenderer.flush()
         await audioRenderer.flush()
-        
         self.assetReader.reset()
-
         renderSynchronizer.setRate(0.0, time: .zero)
         isPlaying = false
     }

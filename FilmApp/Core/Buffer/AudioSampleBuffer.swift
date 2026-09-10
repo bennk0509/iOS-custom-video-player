@@ -14,7 +14,7 @@ actor AudioSampleBuffer{
     }
     
     func enqueue(_ buffer: CMSampleBuffer) async { await core.enqueue(buffer) }
-    func dequeue() async -> CMSampleBuffer { await core.dequeue() }
+    func dequeue() async -> CMSampleBuffer? { await core.dequeue() }
     
     func clear() async {await core.clear()}
 }

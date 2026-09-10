@@ -40,7 +40,9 @@ class AudioRenderer{
     }
     
     func renderNextSample() async throws {
-        let audioBuffer = await audioBuffer.dequeue()
+        guard let audioBuffer = await audioBuffer.dequeue() else{
+            return
+        }
         renderer.enqueue(audioBuffer)
     }
     
