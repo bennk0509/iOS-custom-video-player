@@ -49,7 +49,17 @@ class VideoView: UIView{
     }
     
     func playBack() {
-        videoViewModel.playBack()
+        Task{
+            await videoViewModel.playBack()
+        }
+    }
+    
+    func pause(){
+        videoViewModel.pause()
+    }
+    
+    func resume() {
+        videoViewModel.resume()
     }
         
 }

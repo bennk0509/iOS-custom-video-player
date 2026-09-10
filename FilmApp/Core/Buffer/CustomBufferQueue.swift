@@ -48,5 +48,7 @@ actor CustomBufferQueue<Element>{
         return item
     }
     
-    
+    func clear() async {
+        items.removeAll()
+    }
 }

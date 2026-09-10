@@ -11,13 +11,16 @@ protocol AssetReader{
     func sampleBuffers() -> AsyncThrowingStream<CMSampleBuffer,Error>
     func audioSampleBuffers() -> AsyncThrowingStream<CMSampleBuffer,Error>
     func getAsset() -> AVAsset
+    
+    func reset()
 }
 
 
 
 class AssetReaderImpl: AssetReader{
+    
     private let videoURL: URL
-    private let asset: AVAsset
+    private var asset: AVAsset
     
     init(videoURL: URL)
     {
@@ -27,6 +30,10 @@ class AssetReaderImpl: AssetReader{
     
     func getAsset() -> AVAsset{
         return asset
+    }
+    
+    func reset() {
+        self.asset = AVURLAsset(url: videoURL)
     }
     
     func sampleBuffers() -> AsyncThrowingStream<CMSampleBuffer,Error> {

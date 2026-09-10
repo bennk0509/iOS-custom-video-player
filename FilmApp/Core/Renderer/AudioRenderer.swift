@@ -44,4 +44,9 @@ class AudioRenderer{
         renderer.enqueue(audioBuffer)
     }
     
+    func flush() async {
+        renderer.flush()
+        await audioBuffer.clear()
+    }
+    
 }

@@ -83,4 +83,9 @@ class VideoRenderer {
         return sampleBuffer
     }
     
+    func flush() async {
+        renderer?.flush()
+        await frameBuffer.clear()
+        hasStartedPlayback = false
+    }
 }
