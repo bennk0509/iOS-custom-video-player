@@ -55,7 +55,7 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         
-        guard let videoURL = Bundle.main.url(forResource: "highlight", withExtension: "mov") else {
+        guard let videoURL = Bundle.main.url(forResource: "my_video", withExtension: "mov") else {
             print("Couldnt find video. Please try again")
             return
         }

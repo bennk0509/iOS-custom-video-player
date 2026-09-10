@@ -2,6 +2,7 @@
 internal import UIKit
 internal import AVFoundation
 
+@MainActor
 class VideoViewModel{
 
     private let assetReader: AssetReader
@@ -45,6 +46,7 @@ class VideoViewModel{
         if isPlaying {
             await stop()
         }
+        
         isPlaying = true
         decodeTasks.append(Task { await decodeVideoIntoBuffer() })
         decodeTasks.append(Task { await decodeAudioIntoBuffer() })
@@ -70,8 +72,11 @@ class VideoViewModel{
                 task.cancel()
             }
         }
+        for task in decodeTasks { await task.value }
+        for task in encodeTasks { await task.value }
         decodeTasks.removeAll()
         encodeTasks.removeAll()
+        await self.videoDecode.reset()
         await videoRenderer.flush()
         await audioRenderer.flush()
         self.assetReader.reset()

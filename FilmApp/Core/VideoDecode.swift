@@ -9,6 +9,7 @@ import VideoToolbox
 
 protocol VideoDecode{
     func decode(sample: CMSampleBuffer) async throws -> DecodedVideoFrame?
+    func reset()
 }
 
 actor VTVideoDecodeImpl: VideoDecode{
@@ -99,22 +100,11 @@ actor VTVideoDecodeImpl: VideoDecode{
             )
         }
     }
-    
-//    private func prepareToEncodeFrames(){
-//        let encoderSpecifications = [
-//            kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder: true as CFBoolean
-//        ] as CFDictionary
-//        
-//        
-//        let status = VTCompressionSessionCreate(allocator: kCFAllocatorDefault, width: self.width, height: self.height, codecType: kCMVideoCodecType_H264, encoderSpecification: encoderSpecification, imageBufferAttributes: nil, compressedDataAllocator: nil, outputCallback: outputCallback, refcon: Unmanaged.passUnretained(self).toOpaque(), compressionSessionOut: &session)
-//            print("H264Coder init \(status == noErr) \(status)")
-//            // This demonstrates setting a property after the session has been created
-//            guard let compressionSession = session else { return }
-//            VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
-//            VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_Main_AutoLevel)
-//            VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
-//            VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: CFNumberCreate(kCFAllocatorDefault, CFNumberType.intType, &self.fps))
-//            VTCompressionSessionPrepareToEncodeFrames(compressionSession)
-//    }
-    
+    func reset() {
+        if let session {
+            VTDecompressionSessionInvalidate(session)
+        }
+        session = nil
+        currentFormatDescription = nil
+    }
 }
